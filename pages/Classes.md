@@ -117,6 +117,8 @@ Tommy the Palomino moved 34m.
 
 # Public, private, and protected modifiers
 
+A class member can be marked with the `public`, `private` or `protected` modifier in order to control access to the member. The only exception is ECMAScript private class members (members of the form `#name`), which may not be used with an access modifier. ECMAScript private class members always follow the privacy rules defined by ECMAScript.
+
 ## Public by default
 
 In our examples, we've been able to freely access the members that we declared throughout our programs.
@@ -245,21 +247,48 @@ let howard = new Employee("Howard", "Sales");
 let john = new Person("John"); // Error: The 'Person' constructor is protected
 ```
 
+# ECMAScript private class members
+
+TypeScript supports ECMAScript [private class members](https://github.com/tc39/proposal-class-fields#private-fields) (of the form `#memberName`). Private class members have "hard" privacy: their encapsulation cannot be broken, even at runtime.
+
+```ts
+class A {
+    #foo: string = "I am very private";
+}
+new A().#foo;  // Error
+```
+
+Private class members are similar to members with the `private` modifier but have important differences.
+
+Use an ECMAScript private class member when:
+  * You do not want anyone to be able to see the values of your private properties or invoke your private methods.
+  * Objects of your classes are consumed by callers who have not yet converted to TypeScript (and therefore are not prevented from accessing TypeScript private class members).
+  * You want to use your class as an interface (which is not allowed with the `private` modifier).
+
+Use the `private` modifier when:
+  * You want to be able to see the private field when you `console.log`.
+  * You want the property or method to be enumerable via standard JavaScript reflection or serialization techniques (e.g. `Object.getOwnPropertyNames` or `JSON.stringify`).
+
 # Readonly modifier
 
 You can make properties readonly by using the `readonly` keyword.
 Readonly properties must be initialized at their declaration or in the constructor.
+ECMAScript private class fields may be marked `readonly`.
 
 ```ts
 class Octopus {
     readonly name: string;
     readonly numberOfLegs: number = 8;
-    constructor (theName: string) {
+    readonly #id: string;
+    readonly #type: string = "common";
+    constructor (theName: string, theId: string) {
         this.name = theName;
+        this.#id = theId;
     }
 }
 let dad = new Octopus("Man with the 8 strong legs");
 dad.name = "Man with the 3-piece suit"; // error! name is readonly.
+dad.#id = 42; // error! #id is private and read-only.
 ```
 
 ## Parameter properties
@@ -338,6 +367,22 @@ if (employee.fullName) {
 
 To prove to ourselves that our accessor is now checking the passcode, we can modify the passcode and see that when it doesn't match we instead get the message warning us we don't have access to update the employee.
 
+Accessors may be used with ECMAScript private class properties.
+
+```ts
+class Employee {
+    #idValue: number;
+    
+    get #id(): number {
+        return this.#idValue;
+    }
+    
+    set #id(value: number) {
+        this.#idValue = value;
+    }
+}
+```
+
 A couple of things to note about accessors:
 
 First, accessors require you to set the compiler to output ECMAScript 5 or higher.
@@ -369,6 +414,26 @@ let grid2 = new Grid(5.0);  // 5x scale
 
 console.log(grid1.calculateDistanceFromOrigin({x: 10, y: 10}));
 console.log(grid2.calculateDistanceFromOrigin({x: 10, y: 10}));
+```
+
+Static ECMAScript private class members are allowed.
+
+```ts
+class Converter {
+    static readonly #LITERS_PER_GALLON: number = 3.78541;
+    
+    static #convert(value: number, factor: number): number {
+        return value * factor;
+    }
+    
+    gallonsToLiters(gallons: number): number {
+        return Converter.#convert(gallons, Converter.#LITERS_PER_GALLON);
+    }
+
+    litersToGallons(liters: number): number {
+        return Converter.#convert(liters, 1 / Converter.#LITERS_PER_GALLON);
+    }
+}
 ```
 
 # Abstract Classes
